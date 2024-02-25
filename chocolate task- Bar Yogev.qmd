@@ -1,0 +1,97 @@
+---
+title: "Untitled"
+format: html
+---
+
+
+## Running Code
+```{r}
+
+library(RSQLite)
+library(DBI)
+
+con_chocolate <- DBI::dbConnect(drv = RSQLite::SQLite(),
+                                dbname = "chocolate.sqlite")
+
+
+```
+
+
+# Question 1- 
+1. According to the query the client wanted the costumer's identification that made the highest total order amount since 1/1/2023.
+
+first, in the query they added a new result named "total_orders" which containes the total sum of orders for each costumer(by multiplying "Price" and "amount") from the table "orders" and the table "product" by using "pid". then it limited it to dates after 1.1.2023 and grouped it by the customer’s identification. after that, they took all columns from the new result they created before ("total_orders") and added it to the table "customers" by the column "cid". then they asked to see the results by "sum_total" in descended order and limited the output to only one result.
+
+2.the costumer that made the highest total order amount since 1/1/2023 is Beieler, Joshua
+who and the amount he spent was 1057.03.
+
+```{sql, connection = con_chocolate, output.var = Q1}
+
+WITH total_orders AS (
+ SELECT cid, SUM(Price * amount) AS sum_total
+ FROM orders
+ LEFT JOIN products USING (pid)
+ WHERE (sale_date > '2023-01-01')
+ GROUP BY cid
+)
+
+SELECT *
+FROM total_orders
+LEFT JOIN customers USING (cid)
+ORDER BY sum_total DESC
+LIMIT 1
+
+
+```
+
+
+# Question 2
+Who is the sales rep that made the larger number of sales compared to the average of
+all sales reps that were recruited in the same year as him?
+
+```{sql, connection = con_chocolate, output.var = Q2}
+
+/* creating a new result for the total amount of sales and the sales rep id*/
+WITH db_sales AS (
+SELECT srid, SUM(amount) AS all_sales
+FROM orders
+GROUP BY srid),
+
+/* finding the sales rep with the larger number of sales*/
+top_sales AS (
+SELECT srid, all_sales
+FROM db_sales
+ORDER BY all_sales DESC
+LIMIT 1
+),
+
+/* limiting the year*/
+ave_sales_per_year AS (
+SELECT year_joined, AVG(all_sales) AS ave_sales
+FROM db_sales
+JOIN salesreps USING (srid)
+GROUP BY year_joined
+)
+
+SELECT srid, name, year_joined, all_sales, ave_sales
+FROM db_sales
+JOIN salesreps USING (srid)
+JOIN ave_sales_per_year USING (year_joined)
+WHERE all_sales > ave_sales_per_year
+
+
+
+```
+
+
+
+
+
+You can add options to executable code like this 
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
